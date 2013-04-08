@@ -15,6 +15,10 @@ extern "C" {
 #include <pcap.h>
 }
 
+#ifdef HAVE_NAPATECH_3GD
+#include <nt.h>
+#endif
+
 declare(PDict,BPF_Program);
 
 // Whether a PktSrc object is used by the normal filter structure or the
@@ -116,9 +120,17 @@ public:
 	void ConsumePacket()	{ data = 0; }
 
 	int IsLive() const		{ return interface != 0; }
-
+#ifdef HAVE_NAPATECH_3GD
+	int IsNapatech() const		{ return napatech_stream != 0; }
+#endif
 	pcap_t* PcapHandle() const	{ return pd; }
+#ifndef HAVE_NAPATECH_3GD
 	int LinkType() const		{ return pcap_datalink(pd); }
+#else
+	int LinkType() const		{ return ((napatech_stream == 0) ?
+							pcap_datalink(pd) :
+							DLT_EN10MB); }
+#endif
 
 	const char* ReadFile() const	{ return readfile; }
 	const char* Interface() const	{ return interface; }
@@ -187,6 +199,11 @@ protected:
 	char* interface;	// nil if not reading from an interface
 	char* readfile;		// nil if not reading from a file
 
+#ifdef HAVE_NAPATECH_3GD
+	int napatech_stream_number;
+	NtNetStreamRx_t napatech_stream;
+	NtNetBuf_t napatech_buffer; 
+#endif
 	pcap_t* pd;
 	int selectable_fd;
 	uint32 netmask;

@@ -2,6 +2,9 @@
 
 #include <errno.h>
 #include <sys/stat.h>
+#ifdef HAVE_NAPATECH_3GD
+#include <sys/time.h>
+#endif
 
 #include "config.h"
 
@@ -27,7 +30,11 @@ PktSrc::PktSrc()
 	netmask = 0xffffff00;
 	pd = 0;
 	idle = false;
-
+#ifdef HAVE_NAPATECH_3GD
+	napatech_stream=0;
+	napatech_buffer=0; 
+	napatech_stream_number=0;
+#endif
 	next_sync_point = 0;
 	first_timestamp = current_timestamp = next_timestamp = 0.0;
 	first_wallclock = current_wallclock = 0;
@@ -74,7 +81,50 @@ int PktSrc::ExtractNextPacket()
 		idle = true;
 		return 0;
 		}
+#ifdef HAVE_NAPATECH_3GD
+	if (napatech_stream)
+		{	
+		if (last_data)
+			{
+		  	int status = NT_NetRxRelease(napatech_stream, napatech_buffer);
+		  	if (status != NT_SUCCESS) 
+		  		{
+      				NT_ExplainError(status, errbuf, sizeof(errbuf));
+      				return 0;
+   				}
+			}
 
+		data = last_data = 0;
+		if (NT_NetRxGet(napatech_stream, &napatech_buffer, 0) == NT_SUCCESS) 
+			{
+				
+			if ( NT_NET_GET_PKT_DESCRIPTOR_TYPE(napatech_buffer)==NT_PACKET_DESCRIPTOR_TYPE_NT)
+				{
+				uint64_t unixTime  = (uint64_t)NT_NET_GET_PKT_TIMESTAMP(napatech_buffer);
+				data = last_data = (u_char*) NT_NET_GET_PKT_L2_PTR(napatech_buffer);
+				hdr.caplen = NT_NET_GET_PKT_CAP_LENGTH(napatech_buffer);
+            			hdr.len = NT_NET_GET_PKT_WIRE_LENGTH(napatech_buffer);
+				/*
+				 * gettimeofday(&hdr.ts, NULL);
+				 */
+            			hdr.ts.tv_sec  =  (unixTime / 100000000);
+            			hdr.ts.tv_usec =  (unixTime % 100000000) * 10;
+
+				/* debug packet dumper
+				printf("Got a packet %d %d\n", hdr.caplen, hdr.len);
+				unsigned i;
+				for (i = 0; i < hdr.len; i++)
+					{
+					printf("%02x ", data[i]);
+					if (((i + 1) % 16) == 0) printf("\n");
+					}
+				printf("\n");
+				*/
+    				}
+			}
+		}
+	else
+#endif
 	data = last_data = pcap_next(pd, &hdr);
 
 	if ( data && (hdr.len == 0 || hdr.caplen == 0) )
@@ -341,6 +391,12 @@ bool PktSrc::GetCurrentPacket(const struct pcap_pkthdr** arg_hdr,
 
 int PktSrc::PrecompileFilter(int index, const char* filter)
 	{
+#ifdef HAVE_NAPATECH_3GD
+	if (napatech_stream)
+		{
+		return 1;
+		}
+#endif
 	// Compile filter.
 	BPF_Program* code = new BPF_Program();
 
@@ -413,6 +469,17 @@ void PktSrc::SetHdrSize()
 
 void PktSrc::Close()
 	{
+#ifdef HAVE_NAPATECH_3GD
+	if (napatech_stream)
+		{
+		NT_NetRxClose(napatech_stream);
+		napatech_stream = 0;
+		napatech_stream_number = 0;
+		closed = true;	
+		reporter->Info("closed Napatech stream %i\n", napatech_stream_number);
+		} 
+	else
+#endif
 	if ( pd )
 		{
 		pcap_close(pd);
@@ -448,6 +515,14 @@ void PktSrc::Statistics(Stats* s)
 	if ( reading_traces )
 		s->received = s->dropped = s->link = 0;
 
+#ifdef HAVE_NAPATECH_3GD
+	else if (napatech_stream)
+		{
+			//TODO finish
+			s->received = stats.received;
+			s->dropped = s->link = 0;
+		}
+#endif
 	else
 		{
 		struct pcap_stat pstat;
@@ -489,9 +564,35 @@ PktInterfaceSrc::PktInterfaceSrc(const char* arg_interface, const char* filter,
 		}
 
 	interface = copy_string(arg_interface);
-
-	// Determine network and netmask.
 	uint32 net;
+	
+#ifdef HAVE_NAPATECH_3GD
+	if ( strlen (interface)==3 && interface[0]=='n' && interface[1]=='t')
+		{
+		int status = NT_Init(NTAPI_VERSION);
+		if (status != NT_SUCCESS)
+  		{
+        	    NT_ExplainError(status, errbuf, sizeof(errbuf));
+        	    closed = true;
+    		}
+    		napatech_stream_number = atoi ((const char *)&interface[2]);
+    	
+		char streamName [64];
+    		safe_snprintf (streamName, sizeof (streamName),"bro%u", napatech_stream_number+1);
+    		status = NT_NetRxOpen(&napatech_stream, streamName, NT_NET_INTERFACE_PACKET, napatech_stream_number, -1);
+    		if (status != NT_SUCCESS)
+    		{
+    		    NT_ExplainError(status, errbuf, sizeof(errbuf));
+    		    closed = true;
+    		}
+    	        reporter->Info("opened Napatech stream %i\n", napatech_stream_number);
+		//SetHdrSize();
+		datalink = DLT_EN10MB;
+		return;
+	}
+	else 
+#endif
+	// Determine network and netmask.
 	if ( pcap_lookupnet(interface, &net, &netmask, tmp_errbuf) < 0 )
 		{
 		// ### The lookup can fail if no address is assigned to
@@ -669,8 +770,14 @@ PktDumper::PktDumper(const char* arg_filename, bool arg_append)
 	if ( linktype < 0 )
 		linktype = DLT_EN10MB;
 
+//#ifdef HAVE_NAPATECH_3GD
+//	linktype = DLT_EN10MB;
+//#endif
+
 	pd = pcap_open_dead(linktype, snaplen);
-	if ( ! pd )
+  //pd = pcap_open_dead(linktype, 8192);
+	
+  if ( ! pd )
 		{
 		Error("error for pcap_open_dead");
 		return;
@@ -802,3 +909,4 @@ int get_link_header_size(int dl)
 
 	return -1;
 	}
+

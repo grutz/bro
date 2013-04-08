@@ -82,6 +82,16 @@ include_directories(BEFORE
 
 # Optional Dependencies
 
+set(HAVE_NAPATECH_3GD false)
+find_package(NAPATECH)
+if (NAPATECH_FOUND)
+    set(HAVE_NAPATECH_3GD true)
+    set(CMAKE_REQUIRED_INCLUDES ${NAPATECH_INCLUDE})
+    set(CMAKE_REQUIRED_LIBRARIES ${NAPATECH_LIBRARY})
+    include_directories(BEFORE ${NAPATECH_INCLUDE})
+    list(APPEND OPTLIBS ${NAPATECH_LIBRARY})
+endif ()
+
 set(USE_GEOIP false)
 find_package(LibGeoIP)
 if (LIBGEOIP_FOUND)
