@@ -567,7 +567,7 @@ PktInterfaceSrc::PktInterfaceSrc(const char* arg_interface, const char* filter,
 	uint32 net;
 	
 #ifdef HAVE_NAPATECH_3GD
-	if ( strlen (interface)==3 && interface[0]=='n' && interface[1]=='t')
+	if ( strlen (interface)>=3 && interface[0]=='n' && interface[1]=='t')
 		{
 		int status = NT_Init(NTAPI_VERSION);
 		if (status != NT_SUCCESS)
