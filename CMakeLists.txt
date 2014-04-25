@@ -144,6 +144,14 @@ if (NOT DISABLE_ELASTICSEARCH AND LIBCURL_FOUND)
   list(APPEND OPTLIBS ${LibCURL_LIBRARIES})
 endif()
 
+set(USE_KAFKA false)
+find_package(LibKafka)
+
+if (NOT DISABLE_KAFKA AND LIBKAFKA_FOUND)
+  set(USE_KAFKA true)
+  list(APPEND OPTLIBS ${LibKafka_LIBRARIES})
+endif()
+
 if (ENABLE_PERFTOOLS_DEBUG OR ENABLE_PERFTOOLS)
     # Just a no op to prevent CMake from complaining about manually-specified
     # ENABLE_PERFTOOLS_DEBUG or ENABLE_PERFTOOLS not being used if google

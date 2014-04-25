@@ -26,6 +26,10 @@
 #include "writers/DataSeries.h"
 #endif
 
+#ifdef USE_KAFKA
+#include "writers/Kafka.h"
+#endif
+
 #include "writers/SQLite.h"
 
 using namespace logging;
@@ -50,6 +54,10 @@ WriterDefinition log_writers[] = {
 
 #ifdef USE_DATASERIES
 	{ BifEnum::Log::WRITER_DATASERIES, "DataSeries", 0, writer::DataSeries::Instantiate },
+#endif
+
+#ifdef USE_KAFKA
+    { BifEnum::Log::WRITER_DATASERIES, "Kafka", 0, writer::Kafka::Instantiate },
 #endif
 
 	// End marker, don't touch.
