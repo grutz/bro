@@ -1,21 +1,21 @@
 [submodule "aux/bro-aux"]
 	path = aux/bro-aux
-	url = git://git.bro.org/bro-aux
+	url = https://github.com/bro/bro-aux.git
 [submodule "aux/binpac"]
 	path = aux/binpac
-	url = git://git.bro.org/binpac
+	url = https://github.com/bro/binpac.git
 [submodule "aux/broccoli"]
 	path = aux/broccoli
-	url = git://git.bro.org/broccoli
+	url = https://github.com/bro/broccoli.git
 [submodule "aux/broctl"]
 	path = aux/broctl
-	url = git://git.bro.org/broctl
+	url = https://github.com/bro/broctl.git
 [submodule "aux/btest"]
 	path = aux/btest
-	url = git://git.bro.org/btest
+	url = https://github.com/bro/btest.git
 [submodule "cmake"]
 	path = cmake
-	url = git://git.bro.org/cmake
+	url = https://github.com/bro/cmake.git
 [submodule "src/3rdparty"]
 	path = src/3rdparty
-	url = git://git.bro.org/bro-3rdparty
+	url = https://github.com/bro/bro-3rdparty.git
