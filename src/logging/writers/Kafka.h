@@ -12,6 +12,10 @@
 #include "threading/formatters/Ascii.h"
 #include "threading/formatters/JSON.h"
 #include "../WriterBackend.h"
+#include <libkafka/Client.h>
+#include <libkafka/Message.h>
+#include <libkafka/produce/ProduceRequest.h>
+#include <libkafka/TopicNameBlock.h>
 
 namespace logging { namespace writer {
 
@@ -37,6 +41,11 @@ protected:
     virtual bool DoSetBuf(bool enabled);
     virtual bool DoHeartbeat(double network_time, double current_time);
     virtual bool DoRotate(const char* rotated_path, double open, double close, bool terminating);
+    virtual LibKafka::Message* createMessage(const char * value, const char *key);
+    virtual LibKafka::ProduceRequest* createProduceRequest(string topic_name, LibKafka::Message **messageArray, int messageArraySize);
+    virtual LibKafka::TopicNameBlock<LibKafka::ProduceMessageSet>* createProduceRequestTopicNameBlock(string topic_name, LibKafka::Message **messageArray, int messageArraySize);
+    virtual LibKafka::ProduceMessageSet* createProduceMessageSet(LibKafka::Message **messageArray, int messageArraySize);
+    virtual LibKafka::MessageSet* createMessageSet(LibKafka::Message **messageArray, int messageArraySize);
 
 private:
     bool ProduceToKafka();
@@ -48,6 +57,14 @@ private:
     int server_port;
     char* topic_name;
     int topic_name_len;
+    char* client_id;
+    int client_id_len;
+
+    LibKafka::Client* kafka_client;
+    LibKafka::TopicNameBlock<LibKafka::ProduceMessageSet>** produceTopicArray;
+    LibKafka::ProduceMessageSet** produceMessageSetArray;
+    LibKafka::MessageSet* messageSet;
+    vector<LibKafka::Message*> messageVector;
 
     threading::formatter::JSON* json_formatter;
 

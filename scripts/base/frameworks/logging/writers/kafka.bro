@@ -14,6 +14,9 @@ export {
     ## Name of the Kafka topic.
     const topic_name = "bro" &redef;
 
+    ## Kafka Client ID
+    const client_id = "bro" &redef;
+
     ## Format of timestamps when writing out JSON. By default, the JSON formatter will
     ## use double values for timestamps which represent the number of seconds from the
     ## UNIX epoch.
