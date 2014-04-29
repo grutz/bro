@@ -250,6 +250,7 @@ message(
     "\n"
     "\nDataSeries:        ${USE_DATASERIES}"
     "\nElasticSearch:     ${USE_ELASTICSEARCH}"
+    "\nKafka:             ${USE_KAFKA}"
     "\n"
     "\n================================================================\n"
 )

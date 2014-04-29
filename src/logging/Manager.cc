@@ -57,7 +57,7 @@ WriterDefinition log_writers[] = {
 #endif
 
 #ifdef USE_KAFKA
-    { BifEnum::Log::WRITER_DATASERIES, "Kafka", 0, writer::Kafka::Instantiate },
+    { BifEnum::Log::WRITER_KAFKA, "Kafka", 0, writer::Kafka::Instantiate },
 #endif
 
 	// End marker, don't touch.

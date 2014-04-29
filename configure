@@ -263,7 +263,7 @@ while [ $# -ne 0 ]; do
             append_cache_entry LibCURL_ROOT_DIR PATH $optarg
             ;;
         --with-kafka=*)
-            append_cache_entry LibKafka_ROOT_PATH PATH $optarg
+            append_cache_entry LibKafka_ROOT_DIR PATH $optarg
             ;;
         --binary-package)
             append_cache_entry BINARY_PACKAGING_MODE BOOL true
