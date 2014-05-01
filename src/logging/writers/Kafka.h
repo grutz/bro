@@ -9,7 +9,7 @@
 #ifndef LOGGING_WRITER_KAFKA_H
 #define LOGGING_WRITER_KAFKA_H
 
-#include "threading/formatters/Ascii.h"
+//#include "threading/formatters/Ascii.h"
 #include "threading/formatters/JSON.h"
 #include "../WriterBackend.h"
 #include <libkafka/Client.h>
@@ -27,6 +27,7 @@ public:
     static WriterBackend* Instantiate(WriterFrontend* frontend)
         { return new Kafka(frontend); }
     static string LogExt();
+    LibKafka::Client *kafka_client;
 
 protected:
     // Overidden from WriterBackend.
@@ -60,7 +61,6 @@ private:
     char* client_id;
     int client_id_len;
 
-    LibKafka::Client* kafka_client;
     LibKafka::TopicNameBlock<LibKafka::ProduceMessageSet>** produceTopicArray;
     LibKafka::ProduceMessageSet** produceMessageSetArray;
     LibKafka::MessageSet* messageSet;

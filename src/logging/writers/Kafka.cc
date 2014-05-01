@@ -62,7 +62,7 @@ Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
 
     json_formatter = new threading::formatter::JSON(this, threading::formatter::JSON::TS_MILLIS);
 
-    LibKafka::Client *kafka_client = new Client(server_name, server_port);
+    Client *kafka_client = new Client(server_name, server_port);
 }
 
 Kafka::~Kafka()
@@ -107,6 +107,7 @@ bool Kafka::ProduceToKafka()
     // optionally set compression mode, will be automatic when messages are sent
     //request->setCompression(ApiConstants::MESSAGE_COMPRESSION_GZIP);
 
+    fprintf(stderr, "*** Sending to Kafka\n");
     ProduceResponse *response = kafka_client->sendProduceRequest(request);
 
     return true;
@@ -174,7 +175,7 @@ MessageSet* Kafka::createMessageSet(Message **messageArray, int messageArraySize
     messageSetSize += sizeof(long int) + sizeof(int) + messageArray[i]->getWireFormatSize(false);
   }
 
-  return new LibKafka::MessageSet(messageSetSize, messageVector, true);
+  return new MessageSet(messageSetSize, messageVector, true);
 }
 
 bool Kafka::DoSetBuf(bool enabled)
