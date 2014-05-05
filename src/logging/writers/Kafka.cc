@@ -13,15 +13,7 @@
 #include <string>
 #include <errno.h>
 
-#include <libkafka/ApiConstants.h>
-#include <libkafka/Client.h>
-#include <libkafka/Message.h>
-#include <libkafka/MessageSet.h>
-#include <libkafka/TopicNameBlock.h>
-#include <libkafka/produce/ProduceMessageSet.h>
-#include <libkafka/produce/ProduceRequest.h>
-#include <libkafka/produce/ProduceResponsePartition.h>
-#include <libkafka/produce/ProduceResponse.h>
+//#include <librdkafka/rdkafkacpp.h>
 
 #include "Debug.h"
 #include "BroString.h"
@@ -34,19 +26,17 @@ using namespace logging;
 using namespace writer;
 using threading::Value;
 using threading::Field;
-using namespace LibKafka;
+using namespace RdKafka;
 
 Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
 {
     //json_to_stdout = BifConst::LogKafka::json_to_stdout;
     json_formatter = 0;
 
-    server_name_len = BifConst::LogKafka::server_name->Len();
-    server_name = new char[server_name_len + 1];
-    memcpy(server_name, BifConst::LogKafka::server_name->Bytes(), server_name_len);
-    server_name[server_name_len] = 0;
-
-    server_port = (int) BifConst::LogKafka::server_port;
+    server_list_len = BifConst::LogKafka::server_list->Len();
+    server_list = new char[server_list_len + 1];
+    memcpy(server_list, BifConst::LogKafka::server_list->Bytes(), server_list_len);
+    server_list[server_list_len] = 0;
 
     topic_name_len = BifConst::LogKafka::topic_name->Len();
     topic_name = new char[topic_name_len + 1];
@@ -58,16 +48,26 @@ Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
     memcpy(client_id, BifConst::LogKafka::client_id->Bytes(), client_id_len);
     client_id[client_id_len] = 0;
 
+    compression_codec_len = BifConst::LogKafka::compression_codec->Len();
+    compression_codec = new char[compression_codec_len + 1];
+    memcpy(compression_codec, BifConst::LogKafka::compression_codec->Bytes(), compression_codec_len);
+    compression_codec[compression_codec_len] = 0;
+
     buffer.Clear();
 
     json_formatter = new threading::formatter::JSON(this, threading::formatter::JSON::TS_MILLIS);
 
-    Client *kafka_client = new Client(server_name, server_port);
+    RdKafka::Conf *conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
+    RdKafka::Conf *tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
+
+    conf->set("metadata.broker.list", server_list, errstr);
+    conf->set("compression.codec", compression_codec, errstr);
+    conf->set("client.id", client_id, errstr);
 }
 
 Kafka::~Kafka()
 {
-    delete [] server_name;
+    delete [] server_list;
     delete [] topic_name;
     delete json_formatter;
 }
@@ -89,94 +89,39 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields,
 
     buffer.AddRaw("}\n", 2);
 
-    ProduceToKafka();
-
-    return true;
-    }
-
-bool Kafka::ProduceToKafka()
-    {
-    // TODO: Actually produce to Kafka
     const char* bytes = (const char*)buffer.Bytes();
     //fprintf(stdout, "%s\n", bytes);
-    Message *m = createMessage(bytes, Info().path);
-    Message **messageArray = &m;
-
-    ProduceRequest *request = createProduceRequest(topic_name, messageArray, 1);
-
-    // optionally set compression mode, will be automatic when messages are sent
-    //request->setCompression(ApiConstants::MESSAGE_COMPRESSION_GZIP);
 
     fprintf(stderr, "*** Sending to Kafka\n");
-    ProduceResponse *response = kafka_client->sendProduceRequest(request);
+
+    int32_t partition = RdKafka::Topic::PARTITION_UA;
+    RdKafka::Producer *producer = RdKafka::Producer::create(conf, errstr);
+    if (!producer) {
+        std::cerr << "Failed to create producer: " << errstr << std::endl;
+        return false;
+    }
+
+    RdKafka::Topic *topic = RdKafka::Topic::create(producer, topic_name,
+                           tconf, errstr);
+    if (!topic) {
+        std::cerr << "Failed to create topic: " << errstr << std::endl;
+        return false;
+    }
+
+    RdKafka::ErrorCode resp = producer->produce(topic, partition,
+                                RdKafka::Producer::MSG_COPY /* Copy payload */,
+                                const_cast<char *>(bytes), strlen(bytes),
+              NULL, NULL);
+    if (resp != RdKafka::ERR_NO_ERROR)
+        std::cerr << "% Produce failed: " <<
+            RdKafka::err2str(resp) << std::endl;
+    else
+        std::cerr << "% Produced message (" << strlen(bytes) << " bytes)" << std::endl;
+
+    producer->poll(0);
 
     return true;
     }
-
-Message* Kafka::createMessage(const char *value, const char *key)
-{
-    // these will be updated as the message is prepared for production
-    const static int crc = 1001;
-    const static signed char magicByte = -1;
-    const static signed char attributes = 0; // last three bits must be zero to disable gzip compression
-
-    unsigned char *v = new unsigned char[strlen(value)];
-    memcpy(v, value, strlen(value));
-
-    unsigned char *k = new unsigned char[strlen(key)];
-    memcpy(k, key, strlen(key));
-
-    return new Message(crc, magicByte, attributes, strlen(key), (unsigned char *)k, strlen(value), (unsigned char *)v, 0, true);
-}
-
-ProduceRequest* Kafka::createProduceRequest(string topic_name, Message **messageArray, int messageArraySize)
-{
-    const int correlationId = 212121;
-    const static int requiredAcks = 1;
-    const static int timeout = 20;
-
-    int produceTopicArraySize = 1;
-    produceTopicArray = new TopicNameBlock<ProduceMessageSet>*[produceTopicArraySize];
-    for (int i=0; i<produceTopicArraySize; i++) {
-        produceTopicArray[i] = createProduceRequestTopicNameBlock(topic_name, messageArray, messageArraySize);
-    }
-    return new ProduceRequest(correlationId, client_id, requiredAcks, timeout, produceTopicArraySize, produceTopicArray, true);
-}
-
-TopicNameBlock<ProduceMessageSet>* Kafka::createProduceRequestTopicNameBlock(string topic_name, Message **messageArray, int messageArraySize)
-{
-  const int produceMessageSetArraySize = 1;
-
-  produceMessageSetArray = new ProduceMessageSet*[produceMessageSetArraySize];
-  for (int i=0; i<produceMessageSetArraySize; i++) {
-    produceMessageSetArray[i] = createProduceMessageSet(messageArray, messageArraySize);
-  }
-  return new TopicNameBlock<ProduceMessageSet>(topic_name, produceMessageSetArraySize, produceMessageSetArray, true);
-}
-
-
-ProduceMessageSet* Kafka::createProduceMessageSet(Message **messageArray, int messageArraySize)
-{
-  messageSet = createMessageSet(messageArray, messageArraySize);
-  int messageSetSize = messageSet->getWireFormatSize(false);
-  // using partition = 0
-  return new ProduceMessageSet(0, messageSetSize, messageSet, true);
-}
-
-MessageSet* Kafka::createMessageSet(Message **messageArray, int messageArraySize)
-{
-  int messageSetSize = 0;
-  messageVector.clear();
-
-  for (int i = 0 ; i < messageArraySize ; i++)
-  {
-    messageVector.push_back(messageArray[i]);
-    // sizeof(offset) + sizeof(messageSize) + messageSize
-    messageSetSize += sizeof(long int) + sizeof(int) + messageArray[i]->getWireFormatSize(false);
-  }
-
-  return new MessageSet(messageSetSize, messageVector, true);
-}
 
 bool Kafka::DoSetBuf(bool enabled)
     {

@@ -116,10 +116,10 @@ const max_byte_size: count;
 
 module LogKafka;
 
-const server_name: string;
-const server_port: count;
+const server_list: string;
 const topic_name: string;
 const client_id: string;
+const compression_codec: string;
 #const json_timestamps: JSON::TimestampFormat;
 
 # Options for the None writer.

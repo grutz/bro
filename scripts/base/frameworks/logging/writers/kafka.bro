@@ -5,17 +5,17 @@
 module LogKafka;
 
 export {
-    ## Name of the Kafka instance.
-    const server_name = "kafka" &redef;
-
-    ## Kafka port.
-    const server_port = 2181 &redef;
+    ## List of Kafka instances, separated by commas
+    const server_list = "127.0.0.1:9092" &redef;
 
     ## Name of the Kafka topic.
     const topic_name = "bro" &redef;
 
     ## Kafka Client ID
     const client_id = "bro" &redef;
+
+    ## Compression codec: none, gzip, snappy
+    const compression_codec = "none" &redef;
 
     ## Format of timestamps when writing out JSON. By default, the JSON formatter will
     ## use double values for timestamps which represent the number of seconds from the

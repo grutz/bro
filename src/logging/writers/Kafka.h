@@ -12,10 +12,7 @@
 //#include "threading/formatters/Ascii.h"
 #include "threading/formatters/JSON.h"
 #include "../WriterBackend.h"
-#include <libkafka/Client.h>
-#include <libkafka/Message.h>
-#include <libkafka/produce/ProduceRequest.h>
-#include <libkafka/TopicNameBlock.h>
+#include <librdkafka/rdkafkacpp.h>
 
 namespace logging { namespace writer {
 
@@ -27,7 +24,6 @@ public:
     static WriterBackend* Instantiate(WriterFrontend* frontend)
         { return new Kafka(frontend); }
     static string LogExt();
-    LibKafka::Client *kafka_client;
 
 protected:
     // Overidden from WriterBackend.
@@ -42,29 +38,24 @@ protected:
     virtual bool DoSetBuf(bool enabled);
     virtual bool DoHeartbeat(double network_time, double current_time);
     virtual bool DoRotate(const char* rotated_path, double open, double close, bool terminating);
-    virtual LibKafka::Message* createMessage(const char * value, const char *key);
-    virtual LibKafka::ProduceRequest* createProduceRequest(string topic_name, LibKafka::Message **messageArray, int messageArraySize);
-    virtual LibKafka::TopicNameBlock<LibKafka::ProduceMessageSet>* createProduceRequestTopicNameBlock(string topic_name, LibKafka::Message **messageArray, int messageArraySize);
-    virtual LibKafka::ProduceMessageSet* createProduceMessageSet(LibKafka::Message **messageArray, int messageArraySize);
-    virtual LibKafka::MessageSet* createMessageSet(LibKafka::Message **messageArray, int messageArraySize);
 
 private:
     bool ProduceToKafka();
 
     ODesc buffer;
 
-    char* server_name;
-    int server_name_len;
-    int server_port;
+    char* server_list;
+    int server_list_len;
     char* topic_name;
     int topic_name_len;
     char* client_id;
     int client_id_len;
+    char* compression_codec;
+    int compression_codec_len;
 
-    LibKafka::TopicNameBlock<LibKafka::ProduceMessageSet>** produceTopicArray;
-    LibKafka::ProduceMessageSet** produceMessageSetArray;
-    LibKafka::MessageSet* messageSet;
-    vector<LibKafka::Message*> messageVector;
+    std::string errstr;
+    RdKafka::Conf *conf;
+    RdKafka::Conf *tconf;
 
     threading::formatter::JSON* json_formatter;
 
