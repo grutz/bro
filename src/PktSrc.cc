@@ -89,7 +89,7 @@ int PktSrc::ExtractNextPacket()
 		  	int status = NT_NetRxRelease(napatech_stream, napatech_buffer);
 		  	if (status != NT_SUCCESS) 
 		  		{
-      				NT_ExplainError(status, errbuf, sizeof(errbuf));
+     				NT_ExplainError(status, errbuf, sizeof(errbuf));
       				return 0;
    				}
 			}
@@ -98,29 +98,26 @@ int PktSrc::ExtractNextPacket()
 		if (NT_NetRxGet(napatech_stream, &napatech_buffer, 0) == NT_SUCCESS) 
 			{
 				
-			if ( NT_NET_GET_PKT_DESCRIPTOR_TYPE(napatech_buffer)==NT_PACKET_DESCRIPTOR_TYPE_NT)
+			if ( NT_NET_GET_PKT_DESCRIPTOR_TYPE(napatech_buffer) == NT_PACKET_DESCRIPTOR_TYPE_NT)
 				{
-				uint64_t unixTime  = (uint64_t)NT_NET_GET_PKT_TIMESTAMP(napatech_buffer);
-				data = last_data = (u_char*) NT_NET_GET_PKT_L2_PTR(napatech_buffer);
-				hdr.caplen = NT_NET_GET_PKT_CAP_LENGTH(napatech_buffer);
-            			hdr.len = NT_NET_GET_PKT_WIRE_LENGTH(napatech_buffer);
-				/*
-				 * gettimeofday(&hdr.ts, NULL);
-				 */
-            			hdr.ts.tv_sec  =  (unixTime / 100000000);
-            			hdr.ts.tv_usec =  (unixTime % 100000000) * 10;
+			  uint64_t unixTime  = (uint64_t)NT_NET_GET_PKT_TIMESTAMP(napatech_buffer);
+			  data = last_data = (u_char*) NT_NET_GET_PKT_L2_PTR(napatech_buffer);
+        hdr.caplen = hdr.len = NT_NET_GET_PKT_WIRE_LENGTH(napatech_buffer);
+        hdr.ts.tv_sec  =  (unixTime / 100000000);
+        hdr.ts.tv_usec =  (unixTime % 100000000) * 10;
 
-				/* debug packet dumper
+				/* debug packet dumper 
 				printf("Got a packet %d %d\n", hdr.caplen, hdr.len);
 				unsigned i;
 				for (i = 0; i < hdr.len; i++)
 					{
-					printf("%02x ", data[i]);
+					printf("%02x", data[i]);
+          if (i % 2 == 1) printf(" ");
 					if (((i + 1) % 16) == 0) printf("\n");
 					}
 				printf("\n");
 				*/
-    				}
+    		}
 			}
 		}
 	else
@@ -454,7 +451,17 @@ int PktSrc::SetFilter(int index)
 
 void PktSrc::SetHdrSize()
 	{
-	int dl = pcap_datalink(pd);
+#ifdef HAVE_NAPATECH_3GD
+  int dl;
+  if (napatech_stream) {
+    dl = DLT_EN10MB;
+  }
+  else {
+    dl = pcap_datalink(pd);
+  }
+#else
+  int dl = pcap_datalink(pd);
+#endif
 	hdr_size = get_link_header_size(dl);
 
 	if ( hdr_size < 0 )
@@ -586,7 +593,7 @@ PktInterfaceSrc::PktInterfaceSrc(const char* arg_interface, const char* filter,
     		    closed = true;
     		}
     	        reporter->Info("opened Napatech stream %i\n", napatech_stream_number);
-		//SetHdrSize();
+		SetHdrSize();
 		datalink = DLT_EN10MB;
 		return;
 	}

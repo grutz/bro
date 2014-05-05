@@ -14,6 +14,10 @@ Other configuration options may be added to the configure line as well.
 Bro uses the Napatech NTPL to configure traffic balancing of packets across
 Napatech streams as follows.
 
+Currently Bro only support Unix style timestamps and the NT Packet Descriptor,
+the other types (Ext7, Ext8, etc..) have not been tested and results will be
+unpredictable at best.
+
 Create a file similar to bro.ntpl below to set the adaptor's load balancing
 options similar to the following.
 
