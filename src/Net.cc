@@ -218,7 +218,12 @@ void net_init(name_list& interfaces, name_list& readfiles,
 			else
 				{
 				pkt_srcs.append(ps);
-				io_sources.Register(ps);
+#ifdef HAVE_NAPATECH_3GD
+				if (ps->IsNapatech())
+					io_sources.RegisterNapatech(ps);
+				else
+#endif
+					io_sources.Register(ps);
 				}
 
 			if ( secondary_filter )

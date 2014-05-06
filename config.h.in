@@ -41,6 +41,9 @@
 /* line editing & history powers */
 #cmakedefine HAVE_READLINE
 
+/* Define if you have napatech drivers installed */
+#cmakedefine HAVE_NAPATECH_3GD
+
 /* Define if you have the `sigaction' function, but not `sigset'. */
 #cmakedefine HAVE_SIGACTION
 

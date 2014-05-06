@@ -1,0 +1,94 @@
+This contains support for Napatech adaptors using the Napatech 3GD drivers.
+
+To build Bro with Napatech adaptor support enabled do the following:
+
+./configure --with-napatech=/opt/napatech3/
+make
+make install
+
+You may replace /opt/napatech3/ with the location where you've installed the
+Napatech drivers.
+
+Other configuration options may be added to the configure line as well.
+
+Bro uses the Napatech NTPL to configure traffic balancing of packets across
+Napatech streams as follows.
+
+Currently Bro only support Unix style timestamps and the NT Packet Descriptor,
+the other types (Ext7, Ext8, etc..) have not been tested and results will be
+unpredictable at best.
+
+Create a file similar to bro.ntpl below to set the adaptor's load balancing
+options similar to the following.
+
+brobox:~$ cat bro.ntpl
+HashMode[Priority = 0; Layer4Type = UDP, TCP, SCTP] = Hash5TupleSorted
+HashMode[Priority = 1; Layer3Type = IPV4] = Hash2TupleSorted
+Assign[StreamId=(0..3)] = All
+
+Prior to invoking Bro, install the NTPL configuration as follows.
+
+brobox:~$ /opt/napatech3/bin/ntpl -f bro.ntpl
+
+Modify your node.cfg file to match the load balancing performed by the Napatech
+adaptor as directed by the NTPL configuration show above.
+
+The following example node.cfg file attaches the four Napatech streams created
+above to four bro workers.
+
+You'll need to modify the example 10.1.1.10 IP address used below for your own
+environment.
+
+# Example BroControl node configuration.
+#
+# This example has a standalone node ready to go except for possibly changing
+# the sniffing interface.
+
+# This is a complete standalone configuration.  Most likely you will
+# only need to change the interface.
+#[bro]
+#type=standalone
+#host=localhost
+#interface=nt0
+
+## Below is an example clustered configuration. If you use this,
+## remove the [bro] node above.
+
+[manager]
+type=manager
+host=10.1.1.10
+#
+[proxy-1]
+type=proxy
+host=10.1.1.10
+#
+[worker-1]
+type=worker
+host=10.1.1.10
+interface=nt0
+#
+[worker-2]
+type=worker
+host=10.1.1.10
+interface=nt1
+#
+[worker-3]
+type=worker
+host=10.1.1.10
+interface=nt2
+#
+[worker-4]
+type=worker
+host=10.1.1.10
+interface=nt3
+
+Interfaces nt0, nt1, nt2 and nt3 correspond to the four Napatech streams
+created by the Napatech NTPL.
+
+The configuration above can be a managed with broctl as follows:
+
+broctl install
+broctl start
+
+You may modify bro.ntpl and node.cfg for alternative load balancing options
+for fewer or more workers.

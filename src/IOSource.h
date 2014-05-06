@@ -55,7 +55,11 @@ protected:
 
 class IOSourceRegistry {
 public:
+#ifdef HAVE_NAPATECH_3GD
+	IOSourceRegistry()	{ napatech_iosrc=0; call_count = 0; dont_counts = 0; }
+#else
 	IOSourceRegistry()	{ call_count = 0; dont_counts = 0; }
+#endif
 	~IOSourceRegistry();
 
 	// If dont_count is true, this source does not contribute to the
@@ -64,6 +68,9 @@ public:
 	// processing will shut down.
 	void Register(IOSource* src, bool dont_count = false);
 
+#ifdef HAVE_NAPATECH_3GD
+	void RegisterNapatech(IOSource* src);
+#endif
 	// This may block for some time.
 	IOSource* FindSoonest(double* ts);
 
@@ -96,6 +103,9 @@ protected:
 
 	typedef list<Source*> SourceList;
 	SourceList sources;
+#ifdef HAVE_NAPATECH_3GD
+	IOSource* napatech_iosrc;
+#endif
 };
 
 extern IOSourceRegistry io_sources;

@@ -26,6 +26,27 @@ void IOSourceRegistry::RemoveAll()
 
 IOSource* IOSourceRegistry::FindSoonest(double* ts)
 	{
+
+	IOSource* soonest_src = 0;
+	double soonest_ts = 1e20;
+	double soonest_local_network_time = 1e20;
+#ifdef HAVE_NAPATECH_3GD
+	if (napatech_iosrc)
+		{
+		double local_network_time = 0;
+		double ts1 = napatech_iosrc->NextTimestamp(&local_network_time);
+		if ( ts1 > 0 && ts1 < soonest_ts )
+			{
+			soonest_ts = ts1;
+			soonest_src = napatech_iosrc;
+			soonest_local_network_time =
+				local_network_time ?
+				local_network_time : ts1;
+			*ts = soonest_local_network_time;
+			return soonest_src;
+			}
+		}
+#endif
 	// Remove sources which have gone dry. For simplicity, we only
 	// remove at most one each time.
 	for ( SourceList::iterator i = sources.begin();
@@ -45,15 +66,18 @@ IOSource* IOSourceRegistry::FindSoonest(double* ts)
 
 	++call_count;
 
-	IOSource* soonest_src = 0;
-	double soonest_ts = 1e20;
-	double soonest_local_network_time = 1e20;
 	bool all_idle = true;
 
 	// Find soonest source of those which tell us they have something to
 	// process.
 	for ( SourceList::iterator i = sources.begin(); i != sources.end(); ++i )
 		{
+#ifdef HAVE_NAPATECH_3GD
+		if ( (*i)->src == napatech_iosrc )
+			{
+			continue;
+			}
+#endif
 		if ( ! (*i)->src->IsIdle() )
 			{
 			all_idle = false;
@@ -89,6 +113,12 @@ IOSource* IOSourceRegistry::FindSoonest(double* ts)
 		{
 		Source* src = (*i);
 
+#ifdef HAVE_NAPATECH_3GD
+		if ( src->src == napatech_iosrc )
+			{
+			continue;
+			}
+#endif
 		if ( ! src->src->IsIdle() )
 			// No need to select on sources which we know to
 			// be ready.
@@ -139,6 +169,12 @@ IOSource* IOSourceRegistry::FindSoonest(double* ts)
 		      i != sources.end(); ++i )
 			{
 			Source* src = (*i);
+#ifdef HAVE_NAPATECH_3GD
+			if ( src->src == napatech_iosrc )
+				{
+				continue;
+				}
+#endif
 
 			if ( ! src->src->IsIdle() )
 				continue;
@@ -166,11 +202,21 @@ finished:
 	return soonest_src;
 	}
 
+#ifdef HAVE_NAPATECH_3GD
+void IOSourceRegistry::RegisterNapatech(IOSource* src)
+	{
+		napatech_iosrc = src;
+		Source* s = new Source;
+		s->src = src;
+		return sources.push_back(s);
+	}
+#endif
+
 void IOSourceRegistry::Register(IOSource* src, bool dont_count)
 	{
-	Source* s = new Source;
-	s->src = src;
 	if ( dont_count )
 		++dont_counts;
+	Source* s = new Source;
+	s->src = src;
 	return sources.push_back(s);
 	}
