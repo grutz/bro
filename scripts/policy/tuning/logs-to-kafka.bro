@@ -16,7 +16,7 @@ export {
 
 event bro_init()
   {
-  if ( server_name == "" )
+  if ( server_list == "" )
     return;
 
   for ( stream_id in Log::active_streams )

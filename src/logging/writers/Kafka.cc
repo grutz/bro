@@ -77,8 +77,7 @@ bool Kafka::DoInit(const WriterInfo& info, int num_fields, const threading::Fiel
     return true;
 }
 
-bool Kafka::DoWrite(int num_fields, const Field* const * fields,
-                 Value** vals)
+bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
     {
     // create JSON for Kafka message
     buffer.AddRaw("{\"", 2);
@@ -101,8 +100,7 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields,
         return false;
     }
 
-    RdKafka::Topic *topic = RdKafka::Topic::create(producer, topic_name,
-                           tconf, errstr);
+    RdKafka::Topic *topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
     if (!topic) {
         std::cerr << "Failed to create topic: " << errstr << std::endl;
         return false;
