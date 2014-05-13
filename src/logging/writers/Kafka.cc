@@ -63,6 +63,15 @@ Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
     conf->set("metadata.broker.list", server_list, errstr);
     conf->set("compression.codec", compression_codec, errstr);
     conf->set("client.id", client_id, errstr);
+
+    fprintf(stderr, "*** Preparing Kafka\n");
+
+    int32_t partition = RdKafka::Topic::PARTITION_UA;
+    RdKafka::Producer *producer = RdKafka::Producer::create(conf, errstr);
+
+    fprintf(stderr, "*** Creating topic...\n");
+
+    RdKafka::Topic *topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
 }
 
 Kafka::~Kafka()
@@ -91,21 +100,17 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
     const char* bytes = (const char*)buffer.Bytes();
     //fprintf(stdout, "%s\n", bytes);
 
-    fprintf(stderr, "*** Sending to Kafka\n");
-
-    int32_t partition = RdKafka::Topic::PARTITION_UA;
-    RdKafka::Producer *producer = RdKafka::Producer::create(conf, errstr);
     if (!producer) {
         std::cerr << "Failed to create producer: " << errstr << std::endl;
         return false;
     }
 
-    RdKafka::Topic *topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
     if (!topic) {
         std::cerr << "Failed to create topic: " << errstr << std::endl;
         return false;
     }
 
+    fprintf(stderr, "*** Producing to Kafka...\n");
     RdKafka::ErrorCode resp = producer->produce(topic, partition,
                                 RdKafka::Producer::MSG_COPY /* Copy payload */,
                                 const_cast<char *>(bytes), strlen(bytes),
