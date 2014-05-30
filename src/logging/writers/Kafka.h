@@ -56,6 +56,9 @@ private:
     std::string errstr;
     RdKafka::Conf *conf;
     RdKafka::Conf *tconf;
+    RdKafka::Producer *producer;
+    RdKafka::Topic *topic;
+    int32_t partition;
 
     threading::formatter::JSON* json_formatter;
 
