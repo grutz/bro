@@ -93,22 +93,6 @@ Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
 
     json_formatter = new threading::formatter::JSON(this, threading::formatter::JSON::TS_MILLIS);
 
-    RdKafka::Conf *conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
-    RdKafka::Conf *tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
-
-    if (conf->set("metadata.broker.list", server_list, errstr) != RdKafka::Conf::CONF_OK) {
-        std::cerr << "Failed to set metadata.broker.list: " << errstr << std::endl;
-    }
-    std::cerr << "Server list: " << server_list << std::endl;
-
-    conf->set("compression.codec", compression_codec, errstr);
-    conf->set("client.id", client_id, errstr);
-
-    fprintf(stderr, "*** Preparing Kafka\n");
-
-    int32_t partition = RdKafka::Topic::PARTITION_UA;
-    partition = 1;
-
     /*
     ExampleEventCb ex_event_cb;
     conf->set("event_cb", &ex_event_cb, errstr);
@@ -170,22 +154,20 @@ Kafka::~Kafka()
 
 bool Kafka::DoInit(const WriterInfo& info, int num_fields, const threading::Field* const* fields)
 {
-    return true;
-}
+    RdKafka::Conf *conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
+    RdKafka::Conf *tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
 
-bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
-    {
-    // create JSON for Kafka message
-    buffer.AddRaw("{\"", 2);
-    buffer.Add(Info().path);
-    buffer.AddRaw("\":", 2);
+    if (conf->set("metadata.broker.list", server_list, errstr) != RdKafka::Conf::CONF_OK) {
+        std::cerr << "Failed to set metadata.broker.list: " << errstr << std::endl;
+    }
 
-    json_formatter->Describe(&buffer, num_fields, fields, vals);
+    conf->set("compression.codec", compression_codec, errstr);
+    conf->set("client.id", client_id, errstr);
 
-    buffer.AddRaw("}\n", 2);
+    fprintf(stderr, "*** Preparing Kafka\n");
 
-    const char* bytes = (const char*)buffer.Bytes();
-    //fprintf(stdout, "%s\n", bytes);
+    int32_t partition = RdKafka::Topic::PARTITION_UA;
+    partition = 1;
 
     RdKafka::Conf *new_conf = conf;
     RdKafka::Conf *new_tconf = tconf;
@@ -203,6 +185,23 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
     if (!topic) {
         std::cerr << "!!!! Failed to create topic: " << errstr << std::endl;
     }
+
+    return true;
+}
+
+bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
+    {
+    // create JSON for Kafka message
+    buffer.AddRaw("{\"", 2);
+    buffer.Add(Info().path);
+    buffer.AddRaw("\":", 2);
+
+    json_formatter->Describe(&buffer, num_fields, fields, vals);
+
+    buffer.AddRaw("}\n", 2);
+
+    const char* bytes = (const char*)buffer.Bytes();
+    //fprintf(stdout, "%s\n", bytes);
 
     if (!producer) {
         std::cerr << "!!!! No producer !!!! " << std::endl;
@@ -244,7 +243,7 @@ bool Kafka::DoFlush(double network_time)
 
 bool Kafka::DoFinish(double network_time)
     {
-    // Nothing to do.
+    RdKafka::wait_destroyed(5000);
     return true;
     }
 
