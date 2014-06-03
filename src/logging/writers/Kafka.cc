@@ -64,23 +64,6 @@ class ExampleEventCb : public RdKafka::EventCb {
   }
 };
 
-class MyHashPartitionerCb : public RdKafka::PartitionerCb {
- public:
-  int32_t partitioner_cb (const RdKafka::Topic *topic, const std::string *key,
-                          int32_t partition_cnt, void *msg_opaque) {
-    return djb_hash(key->c_str(), key->size()) % partition_cnt;
-  }
- private:
-
-  static inline unsigned int djb_hash (const char *str, size_t len) {
-    unsigned int hash = 5381;
-    for (size_t i = 0 ; i < len ; i++)
-      hash = ((hash << 5) + hash) + str[i];
-    return hash;
-  }
-};
-
-
 Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
 {
     //json_to_stdout = BifConst::LogKafka::json_to_stdout;
@@ -126,27 +109,15 @@ Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
     int32_t partition = RdKafka::Topic::PARTITION_UA;
     partition = 1;
 
+    /*
     ExampleEventCb ex_event_cb;
     conf->set("event_cb", &ex_event_cb, errstr);
 
     ExampleDeliveryReportCb dr_cb;
     conf->set("dr_cb", &dr_cb, errstr);
+    */
 
-    MyHashPartitionerCb hash_partitioner;
-    tconf->set("partitioner_cb", &hash_partitioner, errstr);
-
-    fprintf(stderr, "*** Creating producer...\n");
-    RdKafka::Producer *producer = RdKafka::Producer::create(conf, errstr);
-    if (!producer) {
-        std::cerr << "Failed to create producer: " << errstr << std::endl;
-    }
-
-    fprintf(stderr, "*** Creating topic...\n");
-    RdKafka::Topic *topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
-    if (!topic) {
-        std::cerr << "Failed to create topic: " << errstr << std::endl;
-    }
-
+    /*
     int pass;
 
     for (pass = 0 ; pass < 2 ; pass++) {
@@ -169,6 +140,21 @@ Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
       }
       std::cout << std::endl;
     }
+    */
+
+    /*fprintf(stderr, "*** Creating producer...\n");
+    RdKafka::Producer *producer;
+    producer = RdKafka::Producer::create(conf, errstr);
+    if (!producer) {
+        std::cerr << "!!!! Failed to create producer: " << errstr << std::endl;
+    }
+
+    fprintf(stderr, "*** Creating topic...\n");
+    RdKafka::Topic *topic;
+    topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
+    if (!topic) {
+        std::cerr << "!!!! Failed to create topic: " << errstr << std::endl;
+    }*/
 }
 
 Kafka::~Kafka()
@@ -177,8 +163,7 @@ Kafka::~Kafka()
     delete [] topic_name;
     delete [] client_id;
     delete [] compression_codec;
-    delete [] conf;
-    delete [] tconf;
+    delete [] producer;
     delete [] topic;
     delete json_formatter;
 }
@@ -202,13 +187,30 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
     const char* bytes = (const char*)buffer.Bytes();
     //fprintf(stdout, "%s\n", bytes);
 
+    RdKafka::Conf *new_conf = conf;
+    RdKafka::Conf *new_tconf = tconf;
+
+    fprintf(stderr, "*** Creating producer...\n");
+    RdKafka::Producer *producer;
+    producer = RdKafka::Producer::create(new_conf, errstr);
     if (!producer) {
-        std::cerr << "Failed to create producer: " << errstr << std::endl;
+        std::cerr << "!!!! Failed to create producer: " << errstr << std::endl;
+    }
+
+    fprintf(stderr, "*** Creating topic...\n");
+    RdKafka::Topic *topic;
+    topic = RdKafka::Topic::create(producer, topic_name, new_tconf, errstr);
+    if (!topic) {
+        std::cerr << "!!!! Failed to create topic: " << errstr << std::endl;
+    }
+
+    if (!producer) {
+        std::cerr << "!!!! No producer !!!! " << std::endl;
         return false;
     }
 
     if (!topic) {
-        std::cerr << "Failed to create topic: " << errstr << std::endl;
+        std::cerr << "!!!! No topic !!!!" << std::endl;
         return false;
     }
 
