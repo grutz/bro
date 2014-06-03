@@ -1,7 +1,7 @@
 // See the file "COPYING" in the main distribution directory for copyright.
 //
-// Log writer for writing to an Kafka (v0.8+) database using libkafka
-// (https://github.com/adobe-research/libkafka)
+// Log writer for writing to an Kafka (v0.8+) database using librdkafka
+// (https://github.com/edenhill/librdkafka)
 //
 // This is experimental code that is not yet ready for production usage.
 //
