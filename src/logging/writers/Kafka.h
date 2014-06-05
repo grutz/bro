@@ -30,7 +30,7 @@ protected:
 
     virtual bool DoInit(const WriterInfo& info, int num_fields,
                 const threading::Field* const* fields);
-
+    virtual bool BatchIndex();
     virtual bool DoWrite(int num_fields, const threading::Field* const* fields,
                  threading::Value** vals);
     virtual bool DoFinish(double network_time);
@@ -43,6 +43,8 @@ private:
     bool ProduceToKafka();
 
     ODesc buffer;
+    uint64 counter;
+    double last_send;
 
     char* server_list;
     int server_list_len;

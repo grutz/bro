@@ -28,42 +28,6 @@ using threading::Value;
 using threading::Field;
 using namespace RdKafka;
 
-class ExampleDeliveryReportCb : public RdKafka::DeliveryReportCb {
- public:
-  void dr_cb (RdKafka::Message &message) {
-    std::cout << "Message delivery for (" << message.len() << " bytes): " <<
-        message.errstr() << std::endl;
-  }
-};
-
-class ExampleEventCb : public RdKafka::EventCb {
- public:
-  void event_cb (RdKafka::Event &event) {
-    switch (event.type())
-    {
-      case RdKafka::Event::EVENT_ERROR:
-        std::cerr << "ERROR (" << RdKafka::err2str(event.err()) << "): " <<
-            event.str() << std::endl;
-        break;
-
-      case RdKafka::Event::EVENT_STATS:
-        std::cerr << "\"STATS\": " << event.str() << std::endl;
-        break;
-
-      case RdKafka::Event::EVENT_LOG:
-        fprintf(stderr, "LOG-%i-%s: %s\n",
-                event.severity(), event.fac().c_str(), event.str().c_str());
-        break;
-
-      default:
-        std::cerr << "EVENT " << event.type() <<
-            " (" << RdKafka::err2str(event.err()) << "): " <<
-            event.str() << std::endl;
-        break;
-    }
-  }
-};
-
 Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
 {
     //json_to_stdout = BifConst::LogKafka::json_to_stdout;
@@ -90,55 +54,10 @@ Kafka::Kafka(WriterFrontend* frontend) : WriterBackend(frontend)
     compression_codec[compression_codec_len] = 0;
 
     buffer.Clear();
+    counter = 0;
+    last_send = current_time();
 
     json_formatter = new threading::formatter::JSON(this, threading::formatter::JSON::TS_MILLIS);
-
-    /*
-    ExampleEventCb ex_event_cb;
-    conf->set("event_cb", &ex_event_cb, errstr);
-
-    ExampleDeliveryReportCb dr_cb;
-    conf->set("dr_cb", &dr_cb, errstr);
-    */
-
-    /*
-    int pass;
-
-    for (pass = 0 ; pass < 2 ; pass++) {
-      std::list<std::string> *dump;
-      if (pass == 0) {
-        dump = conf->dump();
-        std::cout << "# Global config" << std::endl;
-      } else {
-        fprintf(stderr, "*** Dumping tconf...\n");
-        dump = tconf->dump();
-        std::cout << "# Topic config" << std::endl;
-      }
-
-      for (std::list<std::string>::iterator it = dump->begin();
-           it != dump->end(); ) {
-        std::cout << *it << " = ";
-        it++;
-        std::cout << *it << std::endl;
-        it++;
-      }
-      std::cout << std::endl;
-    }
-    */
-
-    /*fprintf(stderr, "*** Creating producer...\n");
-    RdKafka::Producer *producer;
-    producer = RdKafka::Producer::create(conf, errstr);
-    if (!producer) {
-        std::cerr << "!!!! Failed to create producer: " << errstr << std::endl;
-    }
-
-    fprintf(stderr, "*** Creating topic...\n");
-    RdKafka::Topic *topic;
-    topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
-    if (!topic) {
-        std::cerr << "!!!! Failed to create topic: " << errstr << std::endl;
-    }*/
 }
 
 Kafka::~Kafka()
@@ -169,39 +88,22 @@ bool Kafka::DoInit(const WriterInfo& info, int num_fields, const threading::Fiel
     int32_t partition = RdKafka::Topic::PARTITION_UA;
     partition = 1;
 
-    RdKafka::Conf *new_conf = conf;
-    RdKafka::Conf *new_tconf = tconf;
-
     fprintf(stderr, "*** Creating producer...\n");
-    RdKafka::Producer *producer;
-    producer = RdKafka::Producer::create(new_conf, errstr);
+    producer = RdKafka::Producer::create(conf, errstr);
     if (!producer) {
         std::cerr << "!!!! Failed to create producer: " << errstr << std::endl;
     }
 
     fprintf(stderr, "*** Creating topic...\n");
-    RdKafka::Topic *topic;
-    topic = RdKafka::Topic::create(producer, topic_name, new_tconf, errstr);
+    topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
     if (!topic) {
         std::cerr << "!!!! Failed to create topic: " << errstr << std::endl;
     }
 
     return true;
 }
-
-bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
+bool Kafka::BatchIndex()
     {
-    // create JSON for Kafka message
-    buffer.AddRaw("{\"", 2);
-    buffer.Add(Info().path);
-    buffer.AddRaw("\":", 2);
-
-    json_formatter->Describe(&buffer, num_fields, fields, vals);
-
-    buffer.AddRaw("}\n", 2);
-
-    const char* bytes = (const char*)buffer.Bytes();
-    //fprintf(stdout, "%s\n", bytes);
 
     if (!producer) {
         std::cerr << "!!!! No producer !!!! " << std::endl;
@@ -214,6 +116,10 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
     }
 
     fprintf(stderr, "*** Producing to Kafka...\n");
+
+    const char* bytes = (const char*)buffer.Bytes();
+    //fprintf(stdout, "%s\n", bytes);
+
     RdKafka::ErrorCode resp = producer->produce(topic, partition,
                                 RdKafka::Producer::MSG_COPY /* Copy payload */,
                                 const_cast<char *>(bytes), strlen(bytes),
@@ -225,6 +131,28 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
         std::cerr << "% Produced message (" << strlen(bytes) << " bytes)" << std::endl;
 
     producer->poll(0);
+    buffer.Clear();
+    counter = 0;
+    last_send = current_time();
+
+    return true;
+    }
+
+bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
+    {
+    // create JSON for Kafka message
+    buffer.AddRaw("{\"", 2);
+    buffer.Add(Info().path);
+    buffer.AddRaw("\":", 2);
+
+    json_formatter->Describe(&buffer, num_fields, fields, vals);
+
+    buffer.AddRaw("}\n", 2);
+
+    counter++;
+    if ( counter >= BifConst::LogKafka::max_batch_size ||
+        uint(buffer.Len()) >= BifConst::LogKafka::max_byte_size )
+        BatchIndex();
 
     return true;
     }
@@ -249,7 +177,12 @@ bool Kafka::DoFinish(double network_time)
 
 bool Kafka::DoHeartbeat(double network_time, double current_time)
     {
-    // Nothing to do.
+    if ( last_send > 0 && buffer.Len() > 0 &&
+        current_time-last_send > BifConst::LogKafka::max_batch_interval )
+        {
+        BatchIndex();
+        }
+
     return true;
     }
 
