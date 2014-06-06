@@ -144,14 +144,19 @@ if (NOT DISABLE_ELASTICSEARCH AND LIBCURL_FOUND)
   list(APPEND OPTLIBS ${LibCURL_LIBRARIES})
 endif()
 
+# LibRDKafka requires both C++ and C libraries
 set(USE_KAFKA false)
 find_package(KafkaCPP)
-#find_package(LibRDKafka)
-
-
-if (NOT DISABLE_KAFKA AND KAFKA_FOUND)
+if (NOT DISABLE_KAFKA AND KAFKA_CPP_FOUND)
   set(USE_KAFKA true)
-  list(APPEND OPTLIBS ${KAFKA_LIBRARIES})
+  list(APPEND OPTLIBS ${KAFKA_CPP_LIBRARIES})
+endif()
+
+find_package(KafkaC)
+
+if (NOT DISABLE_KAFKA AND KAFKA_C_FOUND)
+  set(USE_KAFKA true)
+  list(APPEND OPTLIBS ${KAFKA_C_LIBRARIES})
 endif()
 
 if (ENABLE_PERFTOOLS_DEBUG OR ENABLE_PERFTOOLS)

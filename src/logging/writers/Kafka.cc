@@ -77,27 +77,26 @@ bool Kafka::DoInit(const WriterInfo& info, int num_fields, const threading::Fiel
     RdKafka::Conf *tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
 
     if (conf->set("metadata.broker.list", server_list, errstr) != RdKafka::Conf::CONF_OK) {
-        std::cerr << "Failed to set metadata.broker.list: " << errstr << std::endl;
+        reporter->Error("Failed to set metadata.broker.list: %s", errstr.c_str());
+        return false;
     }
 
     conf->set("compression.codec", compression_codec, errstr);
     conf->set("client.id", client_id, errstr);
 
-    fprintf(stderr, "*** Preparing Kafka\n");
-
     int32_t partition = RdKafka::Topic::PARTITION_UA;
     partition = 1;
 
-    fprintf(stderr, "*** Creating producer...\n");
     producer = RdKafka::Producer::create(conf, errstr);
     if (!producer) {
-        std::cerr << "!!!! Failed to create producer: " << errstr << std::endl;
+        reporter->Error("Failed to create producer: %s", errstr.c_str());
+        return false;
     }
 
-    fprintf(stderr, "*** Creating topic...\n");
     topic = RdKafka::Topic::create(producer, topic_name, tconf, errstr);
     if (!topic) {
-        std::cerr << "!!!! Failed to create topic: " << errstr << std::endl;
+        reporter->Error("Failed to create topic: %s", errstr.c_str());
+        return false;
     }
 
     return true;
@@ -105,30 +104,23 @@ bool Kafka::DoInit(const WriterInfo& info, int num_fields, const threading::Fiel
 bool Kafka::BatchIndex()
     {
 
-    if (!producer) {
-        std::cerr << "!!!! No producer !!!! " << std::endl;
-        return false;
-    }
-
-    if (!topic) {
-        std::cerr << "!!!! No topic !!!!" << std::endl;
-        return false;
-    }
-
-    fprintf(stderr, "*** Producing to Kafka...\n");
-
     const char* bytes = (const char*)buffer.Bytes();
-    //fprintf(stdout, "%s\n", bytes);
+    std::string errstr;
 
     RdKafka::ErrorCode resp = producer->produce(topic, partition,
                                 RdKafka::Producer::MSG_COPY /* Copy payload */,
                                 const_cast<char *>(bytes), strlen(bytes),
               NULL, NULL);
-    if (resp != RdKafka::ERR_NO_ERROR)
-        std::cerr << "% Produce failed: " <<
-            RdKafka::err2str(resp) << std::endl;
-    else
-        std::cerr << "% Produced message (" << strlen(bytes) << " bytes)" << std::endl;
+    if (resp != RdKafka::ERR_NO_ERROR) {
+        errstr = RdKafka::err2str(resp);
+        reporter->Error( "Produce failed: %s", errstr.c_str());
+    }
+#ifdef DEBUG
+    else {
+        const char* msg = Fmt("Produced message (%d bytes)", strlen(bytes));
+        Debug(DBG_LOGGING, msg);
+    }
+#endif
 
     producer->poll(0);
     buffer.Clear();
