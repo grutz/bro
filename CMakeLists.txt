@@ -144,6 +144,21 @@ if (NOT DISABLE_ELASTICSEARCH AND LIBCURL_FOUND)
   list(APPEND OPTLIBS ${LibCURL_LIBRARIES})
 endif()
 
+# LibRDKafka requires both C++ and C libraries
+set(USE_KAFKA false)
+find_package(KafkaCPP)
+if (NOT DISABLE_KAFKA AND KAFKA_CPP_FOUND)
+  set(USE_KAFKA true)
+  list(APPEND OPTLIBS ${KAFKA_CPP_LIBRARIES})
+endif()
+
+find_package(KafkaC)
+
+if (NOT DISABLE_KAFKA AND KAFKA_C_FOUND)
+  set(USE_KAFKA true)
+  list(APPEND OPTLIBS ${KAFKA_C_LIBRARIES})
+endif()
+
 if (ENABLE_PERFTOOLS_DEBUG OR ENABLE_PERFTOOLS)
     # Just a no op to prevent CMake from complaining about manually-specified
     # ENABLE_PERFTOOLS_DEBUG or ENABLE_PERFTOOLS not being used if google
@@ -242,6 +257,7 @@ message(
     "\n"
     "\nDataSeries:        ${USE_DATASERIES}"
     "\nElasticSearch:     ${USE_ELASTICSEARCH}"
+    "\nKafka:             ${USE_KAFKA}"
     "\n"
     "\n================================================================\n"
 )

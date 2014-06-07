@@ -4,4 +4,5 @@
 @load ./writers/dataseries
 @load ./writers/sqlite
 @load ./writers/elasticsearch
+@load ./writers/kafka
 @load ./writers/none

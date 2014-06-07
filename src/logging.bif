@@ -112,6 +112,19 @@ const max_batch_size: count;
 const max_batch_interval: interval;
 const max_byte_size: count;
 
+# Options for the Kafka writer.
+
+module LogKafka;
+
+const server_list: string;
+const topic_name: string;
+const client_id: string;
+const compression_codec: string;
+const max_batch_size: count;
+const max_batch_interval: interval;
+const max_byte_size: count;
+#const json_timestamps: JSON::TimestampFormat;
+
 # Options for the None writer.
 
 module LogNone;

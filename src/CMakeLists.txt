@@ -353,6 +353,7 @@ set(bro_SRCS
     logging/writers/DataSeries.cc
     logging/writers/SQLite.cc
     logging/writers/ElasticSearch.cc
+    logging/writers/Kafka.cc
     logging/writers/None.cc
 
     input/Manager.cc
