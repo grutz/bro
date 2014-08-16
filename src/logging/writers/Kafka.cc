@@ -66,8 +66,8 @@ Kafka::~Kafka()
     delete [] topic_name;
     delete [] client_id;
     delete [] compression_codec;
-    delete [] producer;
-    delete [] topic;
+    //delete [] producer;
+    //delete [] topic;
     delete json_formatter;
 }
 
@@ -85,7 +85,6 @@ bool Kafka::DoInit(const WriterInfo& info, int num_fields, const threading::Fiel
     conf->set("client.id", client_id, errstr);
 
     int32_t partition = RdKafka::Topic::PARTITION_UA;
-    partition = 1;
 
     producer = RdKafka::Producer::create(conf, errstr);
     if (!producer) {
@@ -139,7 +138,7 @@ bool Kafka::DoWrite(int num_fields, const Field* const * fields, Value** vals)
 
     json_formatter->Describe(&buffer, num_fields, fields, vals);
 
-    buffer.AddRaw("}\n", 2);
+    buffer.AddRaw("}", 1);
 
     counter++;
     if ( counter >= BifConst::LogKafka::max_batch_size ||
@@ -181,6 +180,7 @@ bool Kafka::DoHeartbeat(double network_time, double current_time)
 bool Kafka::DoRotate(const char* rotated_path, double open, double close, bool terminating)
     {
     // Nothing to do.
+    FinishedRotation();
     return true;
     }
 
